@@ -110,7 +110,7 @@ resource "aws_ecs_service" "main" {
   network_configuration {
     security_groups  = [aws_security_group.ecs_service.id]
     subnets          = var.private_subnet_ids
-    assign_public_ip = true
+    assign_public_ip = false
   }
   service_registries {
     registry_arn = aws_service_discovery_service.main.arn
