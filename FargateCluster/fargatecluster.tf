@@ -231,7 +231,7 @@ data "aws_iam_policy_document" "app_policy" {
   }
 }
 
-# Assign the custome policy to task execution role
+# Assign the custom policy to task execution role
 resource "aws_iam_role_policy" "app_policy" {
   name   = "${var.app_name}-${var.environment}-ecs-policy"
   role   = aws_iam_role.ecs_task_execution_role.id
