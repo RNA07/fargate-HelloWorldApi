@@ -1,11 +1,22 @@
-output vpc_arn {
-  value = aws_vpc.main_vpc.arn
-  description = "ARN of newly created vpc"
+output vpc_id {
+  value = aws_vpc.main_vpc.id
+  description = "VPC id"
 }
 
-output cloud_map_arn {
+
+output private_subnet_id {
+  value = aws_subnet.Private-Subnet.id
+  description = "Private Subnet id for Fargate Cluster"
+}
+
+output Fargate_NameSpace_id {
   value = aws_service_discovery_private_dns_namespace.main.id
-  description = "ID of newly created namespace"
+  description = "Namespace id"
+}
+
+output VPC_Link_id {
+  value = aws_apigatewayv2_vpc_link.main.id
+  description = "VPC Link Id"
 }
 
 output VPC_Link_SG {

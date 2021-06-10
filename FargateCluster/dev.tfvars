@@ -1,5 +1,5 @@
 
-environment = "dev"
+environment = "test"
 region = "ap-southeast-2"
 
 NetworkStackVpcLinkId = "e3a49d"

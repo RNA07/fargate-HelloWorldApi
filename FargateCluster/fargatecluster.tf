@@ -9,6 +9,8 @@ terraform {
 provider "aws" {
   region = var.region
 }
+
+# Creating a service in cloudmap
 resource "aws_service_discovery_service" "main" {
   name = "${var.app_name}-${var.environment}"
 
@@ -24,8 +26,9 @@ resource "aws_service_discovery_service" "main" {
   }
 }
 
-resource "aws_apigatewayv2_api" "HelloWorldApi" {
-  name          = "HelloWorldApi"
+# Creating an API Gateway
+resource "aws_apigatewayv2_api" "main" {
+  name          = "${var.app_name}-${var.environment}"
   protocol_type = "HTTP"
   cors_configuration {
     allow_origins = ["*"]
@@ -33,14 +36,10 @@ resource "aws_apigatewayv2_api" "HelloWorldApi" {
     allow_headers = ["*"]
   }
 }
-resource "aws_apigatewayv2_route" "default_route" {
-  api_id = aws_apigatewayv2_api.HelloWorldApi.id
-  route_key = "ANY /{proxy+}"
-  target = "integrations/${aws_apigatewayv2_integration.HelloWorldIntegration.id}"
-}
 
-resource "aws_apigatewayv2_integration" "HelloWorldIntegration" {
-  api_id = aws_apigatewayv2_api.HelloWorldApi.id
+# API Gateway Integration
+resource "aws_apigatewayv2_integration" "main" {
+  api_id = aws_apigatewayv2_api.main.id
   integration_type = "HTTP_PROXY"
   connection_id = var.NetworkStackVpcLinkId
   connection_type = "VPC_LINK"
@@ -49,17 +48,26 @@ resource "aws_apigatewayv2_integration" "HelloWorldIntegration" {
   payload_format_version = "1.0"
 }
 
+resource "aws_apigatewayv2_route" "default_route" {
+  api_id = aws_apigatewayv2_api.main.id
+  route_key = "ANY /{proxy+}"
+  target = "integrations/${aws_apigatewayv2_integration.main.id}"
+}
+
+# API Gateway Default Stage
 resource "aws_apigatewayv2_stage" "Default" {
-  api_id = aws_apigatewayv2_api.HelloWorldApi.id
+  api_id = aws_apigatewayv2_api.main.id
   name   = "$default"
   auto_deploy = true
 }
 
-
+# ECS CLuster for fargate
 resource "aws_ecs_cluster" "main" {
   name = "${var.app_name}-${var.environment}-Cluster"
   tags = var.tags
 }
+
+# Fargate Service Security Group- Allowing inbound from VPC Link security group
 resource "aws_security_group" "ecs_service" {
   name        = "fargate-task-security-group-${var.environment}"
   description = "security group for fargate tasks"
@@ -89,6 +97,8 @@ resource "aws_security_group" "ecs_service" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 }
+
+# Fargate Service
 resource "aws_ecs_service" "main" {
 
   name            = "${var.app_name}-${var.environment}"
@@ -108,12 +118,14 @@ resource "aws_ecs_service" "main" {
   }
 }
 
+# Cloudwatch Log Group
 resource "aws_cloudwatch_log_group" "main" {
   name              = "/fargate/${var.app_name}-${var.environment}"
   retention_in_days = 30
   tags = var.tags
 }
 
+# Cloudwatch Log Stream
 resource "aws_cloudwatch_log_stream" "main" {
   name           = "${var.app_name}-${var.environment}"
   log_group_name = aws_cloudwatch_log_group.main.name
@@ -124,6 +136,7 @@ data "aws_ecs_task_definition" "app" {
   depends_on      = [aws_ecs_task_definition.app]
 }
 
+# Task Definition
 resource "aws_ecs_task_definition" "app" {
   family             = "${var.app_name}-${var.environment}"
   execution_role_arn = aws_iam_role.ecs_task_execution_role.arn
@@ -164,6 +177,7 @@ resource "aws_ecs_task_definition" "app" {
   tags = var.tags
 }
 
+# Role for task Definition
 resource "aws_iam_role" "task_definition_task_role" {
   assume_role_policy = <<EOF
 {
@@ -182,6 +196,7 @@ resource "aws_iam_role" "task_definition_task_role" {
 EOF
 }
 
+# Task Execution Role
 resource "aws_iam_role" "ecs_task_execution_role" {
   assume_role_policy = <<EOF
 {
@@ -200,14 +215,8 @@ resource "aws_iam_role" "ecs_task_execution_role" {
 EOF
 }
 
-# assigns the app policy
-resource "aws_iam_role_policy" "app_policy" {
-  name   = "${var.app_name}-${var.environment}-ecs-policy"
-  role   = aws_iam_role.ecs_task_execution_role.id
-  policy = data.aws_iam_policy_document.app_policy.json
-}
 
-# custom policy
+# Custom Policy
 data "aws_iam_policy_document" "app_policy" {
   statement {
     actions = [
@@ -220,4 +229,11 @@ data "aws_iam_policy_document" "app_policy" {
     ]
     resources = ["*"]
   }
+}
+
+# Assign the custome policy to task execution role
+resource "aws_iam_role_policy" "app_policy" {
+  name   = "${var.app_name}-${var.environment}-ecs-policy"
+  role   = aws_iam_role.ecs_task_execution_role.id
+  policy = data.aws_iam_policy_document.app_policy.json
 }
